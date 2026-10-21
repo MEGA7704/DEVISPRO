@@ -1,0 +1,15 @@
+PRAGMA foreign_keys=ON;
+CREATE TABLE IF NOT EXISTS enterprises(id TEXT PRIMARY KEY,name TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,enterprise_id TEXT NOT NULL REFERENCES enterprises(id),name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,password_hash TEXT NOT NULL,password_salt TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('member','superadmin')),active INTEGER NOT NULL DEFAULT 1,must_change INTEGER NOT NULL DEFAULT 0,session_version INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS sessions(id_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),expires_at INTEGER NOT NULL,version INTEGER NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE TABLE IF NOT EXISTS login_attempts(key TEXT PRIMARY KEY,attempts INTEGER NOT NULL,locked_until INTEGER NOT NULL,window_started INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS password_resets(token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),expires_at INTEGER NOT NULL,used INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS materials(id TEXT PRIMARY KEY,enterprise_id TEXT NOT NULL REFERENCES enterprises(id),user_id TEXT NOT NULL REFERENCES users(id),domain TEXT NOT NULL,name TEXT NOT NULL,unit TEXT NOT NULL,price REAL NOT NULL CHECK(price>=0),created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX IF NOT EXISTS idx_materials_owner ON materials(enterprise_id,user_id);
+CREATE TABLE IF NOT EXISTS quotations(id TEXT PRIMARY KEY,enterprise_id TEXT NOT NULL REFERENCES enterprises(id),user_id TEXT NOT NULL REFERENCES users(id),number TEXT NOT NULL UNIQUE,client TEXT NOT NULL,subject TEXT NOT NULL DEFAULT '',domain TEXT NOT NULL,header_json TEXT NOT NULL DEFAULT '{}',footer_json TEXT NOT NULL DEFAULT '{}',data_json TEXT NOT NULL,grand_total REAL NOT NULL,status TEXT NOT NULL DEFAULT 'draft',created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX IF NOT EXISTS idx_quotes_owner ON quotations(enterprise_id,user_id);
+CREATE TABLE IF NOT EXISTS orders(id TEXT PRIMARY KEY,enterprise_id TEXT NOT NULL REFERENCES enterprises(id),user_id TEXT NOT NULL REFERENCES users(id),quotation_id TEXT NOT NULL REFERENCES quotations(id),formats_json TEXT NOT NULL,method TEXT NOT NULL CHECK(method IN ('agency','email','whatsapp')),contact TEXT NOT NULL,payment_status TEXT NOT NULL DEFAULT 'unpaid',status TEXT NOT NULL DEFAULT 'pending',fee INTEGER NOT NULL DEFAULT 600,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX IF NOT EXISTS idx_orders_owner ON orders(enterprise_id,user_id);
+CREATE TABLE IF NOT EXISTS audit_logs(id TEXT PRIMARY KEY,actor_id TEXT,enterprise_id TEXT,action TEXT NOT NULL,target_id TEXT,metadata TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
